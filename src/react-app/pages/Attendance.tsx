@@ -25,7 +25,7 @@ export default function Attendance() {
     fetchProjects(() => api.get<ProjectType[]>('/api/projects'));
   }, [selectedDate, selectedProject, fetchAttendance, fetchWorkers, fetchProjects]);
 
-  const handleMarkAttendance = async (workerId: number, projectId: number, status: 'full' | 'half' | 'absent') => {
+  const handleMarkAttendance = async (workerId: string, projectId: string, status: 'full' | 'half' | 'absent') => {
     try {
       const attendanceData = {
         worker_id: workerId,
@@ -50,7 +50,7 @@ export default function Attendance() {
     }
   };
 
-  const getWorkerAttendance = (workerId: number) => {
+  const getWorkerAttendance = (workerId: string) => {
     return attendance?.find(a => a.worker_id === workerId);
   };
 
@@ -67,7 +67,7 @@ export default function Attendance() {
 
   const stats = getAttendanceStats();
   const filteredWorkers = selectedProject 
-    ? workers?.filter(w => w.project_id === parseInt(selectedProject))
+    ? workers?.filter(w => w.project_id === selectedProject)
     : workers?.filter(w => w.is_active);
 
   if (loading && !attendance) {
@@ -205,7 +205,7 @@ export default function Attendance() {
                 {/* Attendance Buttons */}
                 <div className="grid grid-cols-3 gap-2">
                   <button
-                    onClick={() => handleMarkAttendance(worker.id, worker.project_id || 1, 'full')}
+                    onClick={() => handleMarkAttendance(worker.id, worker.project_id || '1', 'full')}
                     className={`p-3 rounded-lg font-medium text-sm transition-colors ${
                       workerAttendance?.status === 'full'
                         ? 'bg-green-500 text-white'
@@ -217,7 +217,7 @@ export default function Attendance() {
                   </button>
                   
                   <button
-                    onClick={() => handleMarkAttendance(worker.id, worker.project_id || 1, 'half')}
+                    onClick={() => handleMarkAttendance(worker.id, worker.project_id || '1', 'half')}
                     className={`p-3 rounded-lg font-medium text-sm transition-colors ${
                       workerAttendance?.status === 'half'
                         ? 'bg-orange-500 text-white'
@@ -229,7 +229,7 @@ export default function Attendance() {
                   </button>
                   
                   <button
-                    onClick={() => handleMarkAttendance(worker.id, worker.project_id || 1, 'absent')}
+                    onClick={() => handleMarkAttendance(worker.id, worker.project_id || '1', 'absent')}
                     className={`p-3 rounded-lg font-medium text-sm transition-colors ${
                       workerAttendance?.status === 'absent'
                         ? 'bg-red-500 text-white'

@@ -108,7 +108,7 @@ export default function Payments() {
     });
   };
 
-  const updatePaymentStatus = async (paymentId: number, status: 'paid' | 'unpaid') => {
+  const updatePaymentStatus = async (paymentId: string, status: 'paid' | 'unpaid') => {
     try {
       await api.put(`/api/payments/${paymentId}`, { status });
       fetchPayments(() => api.get<PaymentType[]>('/api/payments'));

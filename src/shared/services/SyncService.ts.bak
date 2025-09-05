@@ -1,0 +1,91 @@
+import { DatabaseService } from './DatabaseService';
+
+export class SyncService {
+  private static instance: SyncService;
+  private db: DatabaseService;
+  private syncQueue: { type: string; action: string; data: any }[] = [];
+
+  private constructor() {
+    this.db = DatabaseService.getInstance();
+  }
+
+  static getInstance(): SyncService {
+    if (!SyncService.instance) {
+      SyncService.instance = new SyncService();
+    }
+    return SyncService.instance;
+  }
+
+  async exportData(): Promise<string> {
+    await this.db.init();
+    
+    const [workers, projects, attendance, payments] = await Promise.all([
+      this.db.query('SELECT * FROM workers'),
+      this.db.query('SELECT * FROM projects'),
+      this.db.query('SELECT * FROM attendance'),
+      this.db.query('SELECT * FROM payments')
+    ]);
+
+    const data = {
+      workers,
+      projects,
+      attendance,
+      payments,
+      exportDate: new Date().toISOString()
+    };
+
+    return JSON.stringify(data, null, 2);
+  }
+
+  async importData(jsonData: string): Promise<void> {
+    try {
+      const data = JSON.parse(jsonData);
+      await this.db.init();
+
+      await this.db.transaction(async () => {
+        // Clear existing data
+        await this.db.execute('DELETE FROM workers');
+        await this.db.execute('DELETE FROM projects');
+        await this.db.execute('DELETE FROM attendance');
+        await this.db.execute('DELETE FROM payments');
+
+        // Import new data
+        for (const worker of data.workers || []) {
+          await this.db.execute(
+            'INSERT INTO workers (id, name, labour_type, phone_number, aadhaar_id, daily_wage, hourly_rate, upi_id, project_id, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [worker.id, worker.name, worker.labour_type, worker.phone_number, worker.aadhaar_id, worker.daily_wage, worker.hourly_rate, worker.upi_id, worker.project_id, worker.is_active]
+          );
+        }
+
+        for (const project of data.projects || []) {
+          await this.db.execute(
+            'INSERT INTO projects (id, name, location, status) VALUES (?, ?, ?, ?)',
+            [project.id, project.name, project.location, project.status]
+          );
+        }
+
+        for (const record of data.attendance || []) {
+          await this.db.execute(
+            'INSERT INTO attendance (id, worker_id, project_id, attendance_date, status, hours_worked, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [record.id, record.worker_id, record.project_id, record.attendance_date, record.status, record.hours_worked, record.notes]
+          );
+        }
+
+        for (const payment of data.payments || []) {
+          await this.db.execute(
+            'INSERT INTO payments (id, worker_id, project_id, amount, payment_type, payment_date, payment_period_start, payment_period_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [payment.id, payment.worker_id, payment.project_id, payment.amount, payment.payment_type, payment.payment_date, payment.payment_period_start, payment.payment_period_end]
+          );
+        }
+      });
+    } catch (error) {
+      console.error('Error importing data:', error);
+      throw new Error('Failed to import data. The file might be corrupted or in wrong format.');
+    }
+  }
+
+  // Initialize sync listeners - now just for local data consistency
+  initSyncListeners() {
+    // No network sync needed
+  }
+}

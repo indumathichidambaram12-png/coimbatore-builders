@@ -1,0 +1,22 @@
+[debug] [2025-08-23T03:08:54.755Z] ----------------------------------------------------------------------
+[debug] [2025-08-23T03:08:54.763Z] Command:       C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\firebase-tools\lib\bin\firebase.js init auth
+[debug] [2025-08-23T03:08:54.764Z] CLI Version:   14.14.0
+[debug] [2025-08-23T03:08:54.764Z] Platform:      win32
+[debug] [2025-08-23T03:08:54.764Z] Node Version:  v20.19.4
+[debug] [2025-08-23T03:08:54.764Z] Time:          Sat Aug 23 2025 08:38:54 GMT+0530 (India Standard Time)
+[debug] [2025-08-23T03:08:54.764Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-08-23T03:08:55.013Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-23T03:08:55.014Z] > authorizing via signed-in user (kalitheerthapandian@gmail.com)
+[error] 
+[error] Error: auth is not a supported feature; must be one of dataconnect, firestore, genkit, functions, apphosting, hosting, storage, emulators, remoteconfig, extensions, database, hosting:github, dataconnect:sdk, aitools.
+[debug] [2025-08-23T03:08:55.494Z] Error: EBUSY: resource busy or locked, unlink 'F:\Coimbatore Builders 1\Coimbatore Builders\firebase-debug.log'
+    at Object.unlinkSync (node:fs:1886:11)
+    at process.<anonymous> (C:\Users\Pandian\AppData\Local\nvm\v20.19.4\node_modules\firebase-tools\lib\bin\cli.js:44:16)
+    at process.emit (node:events:536:35)
+    at process.exit (node:internal/process/per_thread:184:15)
+    at Timeout._onTimeout (C:\Users\Pandian\AppData\Local\nvm\v20.19.4\node_modules\firebase-tools\lib\errorOut.js:20:17)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
+[error] 
+[error] Error: An unexpected error has occurred.

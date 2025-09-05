@@ -1,74 +1,118 @@
-import axios from 'axios';
+import { DatabaseService } from './DatabaseService';
+import { WorkerType, ProjectType, AttendanceType, PaymentType } from '@/shared/types';
 
-// Create an axios instance with default config
-const api = axios.create({
-  baseURL: 'https://your-api-base-url.com', // Replace with your actual API URL
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const db = DatabaseService.getInstance();
 
-// Add a request interceptor for auth tokens if needed
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+interface SQLiteResponse {
+  values?: any[];
+  changes?: number;
+}
 
-// Add a response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized access
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
-// API methods for different resources
+// Local storage based API service that uses SQLite
 export const apiService = {
+  init: async () => {
+    await db.init();
+  },
   // Workers
   workers: {
-    getAll: () => api.get('/workers'),
-    getById: (id: number) => api.get(`/workers/${id}`),
-    create: (data: any) => api.post('/workers', data),
-    update: (id: number, data: any) => api.put(`/workers/${id}`, data),
-    delete: (id: number) => api.delete(`/workers/${id}`),
+    getAll: async (): Promise<WorkerType[]> => {
+      const workers = await db.query<WorkerType[]>('SELECT * FROM workers WHERE is_active = 1');
+      return workers || [];
+    },
+    getById: async (id: number): Promise<WorkerType | undefined> => {
+      const workers = await db.query<WorkerType[]>('SELECT * FROM workers WHERE id = ? AND is_active = 1', [id]);
+      return workers?.[0];
+    },
+    create: async (data: Omit<WorkerType, 'id'>): Promise<WorkerType> => {
+      const result = await db.execute(
+        'INSERT INTO workers (name, labour_type, phone_number, aadhaar_id, daily_wage, hourly_rate, upi_id, project_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [data.name, data.labour_type, data.phone_number, data.aadhaar_id, data.daily_wage, data.hourly_rate, data.upi_id, data.project_id]
+      );
+      return { ...data, id: result.lastInsertId };
+    },
+    update: async (id: number, data: Partial<WorkerType>): Promise<WorkerType> => {
+      await db.execute(
+        'UPDATE workers SET name = ?, labour_type = ?, phone_number = ?, aadhaar_id = ?, daily_wage = ?, hourly_rate = ?, upi_id = ?, project_id = ? WHERE id = ?',
+        [data.name, data.labour_type, data.phone_number, data.aadhaar_id, data.daily_wage, data.hourly_rate, data.upi_id, data.project_id, id]
+      );
+      return { ...data, id } as WorkerType;
+    },
+    delete: async (id: number): Promise<{ success: boolean }> => {
+      await db.execute('UPDATE workers SET is_active = 0 WHERE id = ?', [id]);
+      return { success: true };
+    },
   },
 
   // Projects
   projects: {
-    getAll: () => api.get('/projects'),
-    getById: (id: number) => api.get(`/projects/${id}`),
-    create: (data: any) => api.post('/projects', data),
-    update: (id: number, data: any) => api.put(`/projects/${id}`, data),
-    delete: (id: number) => api.delete(`/projects/${id}`),
+    getAll: async () => {
+      await db.init();
+      return db.getProjects();
+    },
+    getById: async (id: number) => {
+      await db.init();
+      const projects = await db.getProjects();
+      return projects.find(p => p.id === id);
+    },
+    create: async (data: any) => {
+      await db.init();
+      const id = await db.addProject(data);
+      return { ...data, id };
+    },
+    update: async (id: number, data: any) => {
+      await db.init();
+      await db.run(
+        'UPDATE projects SET name = ?, location = ?, status = ? WHERE id = ?',
+        [data.name, data.location, data.status, id]
+      );
+      return { ...data, id };
+    },
+    delete: async (id: number) => {
+      await db.init();
+      await db.run('UPDATE projects SET status = ? WHERE id = ?', ['inactive', id]);
+      return { success: true };
+    },
   },
 
   // Attendance
   attendance: {
-    getByDate: (date: string) => api.get(`/attendance?date=${date}`),
-    markAttendance: (data: any) => api.post('/attendance', data),
-    updateAttendance: (id: number, data: any) => api.put(`/attendance/${id}`, data),
+    getByDate: async (date: string) => {
+      await db.init();
+      return db.getAttendance(date);
+    },
+    markAttendance: async (data: any) => {
+      await db.init();
+      const id = await db.markAttendance(data);
+      return { ...data, id };
+    },
+    updateAttendance: async (id: number, data: any) => {
+      await db.init();
+      await db.run(
+        'UPDATE attendance SET status = ?, hours_worked = ?, notes = ? WHERE id = ?',
+        [data.status, data.hours_worked, data.notes, id]
+      );
+      return { ...data, id };
+    },
   },
 
   // Payments
   payments: {
-    getByWorker: (workerId: number) => api.get(`/payments?workerId=${workerId}`),
-    create: (data: any) => api.post('/payments', data),
-    update: (id: number, data: any) => api.put(`/payments/${id}`, data),
+    getByWorker: async (workerId: number) => {
+      await db.init();
+      return db.getPayments(workerId);
+    },
+    create: async (data: any) => {
+      await db.init();
+      const id = await db.recordPayment(data);
+      return { ...data, id };
+    },
+    update: async (id: number, data: any) => {
+      await db.init();
+      await db.run(
+        'UPDATE payments SET amount = ?, payment_type = ?, payment_date = ?, payment_period_start = ?, payment_period_end = ? WHERE id = ?',
+        [data.amount, data.payment_type, data.payment_date, data.payment_period_start, data.payment_period_end, id]
+      );
+      return { ...data, id };
+    },
   },
 };
-
-export default api;

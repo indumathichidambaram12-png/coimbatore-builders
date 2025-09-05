@@ -18,15 +18,10 @@ export function getCurrentLocation(): Promise<LocationData> {
         
         // Try to get a readable location name
         let locationName = 'Unknown Location';
-        try {
-          const response = await fetch(
-            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-          );
-          const data = await response.json();
-          locationName = data.locality || data.city || data.principalSubdivision || 'Unknown Location';
-        } catch (error) {
-          console.log('Could not fetch location name:', error);
-        }
+        // Removed external API call for reverse geocoding due to deployment constraints.
+        // locationName will default to 'Unknown Location'.
+        // If a reverse geocoding service is required, it needs to be implemented
+        // with a server-side proxy or a different approach that doesn't rely on direct client-side fetch to external APIs.
 
         resolve({
           latitude,

@@ -3,16 +3,16 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  User
+  User,
 } from 'firebase/auth';
-import { auth } from '../../shared/services/firebase';
+import { auth } from '../services/firebase'; // Import auth from the shared firebase service
 
 interface AuthContextType {
-user: User | null;
-loading: boolean;
-error: string | null;
-signIn: (email: string, password: string) => Promise<void>;
-signOutFirebase: () => Promise<void>;
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>; // Updated to match Firebase signOut signature
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,20 +22,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Initialize Firebase auth
+
   useEffect(() => {
-    // Check if PIN exists and session is valid
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [auth]);
 
 
 
 
-  const signInFirebase = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -50,30 +52,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOutFirebase = async () => {
     try {
-      setLoading(true);
-      setError(null);
       await signOut(auth);
+      setUser(null);
     } catch (error: any) {
       setError(error.message);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     loading,
     error,
-    signIn: signInFirebase,
-    signOutFirebase: signOutFirebase
+    signIn,
+    signOut: signOutFirebase,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

@@ -2,19 +2,21 @@ import z from "zod";
 
 // Project/Work Site schemas
 export const ProjectSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   name: z.string().min(1),
   location: z.string().optional(),
   status: z.enum(['active', 'inactive', 'completed']).default('active'),
+  is_active: z.boolean().default(true),
   created_at: z.string(),
-  updated_at: z.string(),
+  updated_at: z.string().optional(),
+  deleted_at: z.string().optional(),
 });
 
 export type ProjectType = z.infer<typeof ProjectSchema>;
 
 // Worker/Labour schemas
 export const WorkerSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   name: z.string().min(1),
   labour_type: z.string().min(1),
   phone_number: z.string().optional(),
@@ -22,11 +24,12 @@ export const WorkerSchema = z.object({
   daily_wage: z.number().positive(),
   hourly_rate: z.number().positive().optional(),
   upi_id: z.string().optional(),
-  project_id: z.number().optional(),
+  project_id: z.string().optional(),
   photo_url: z.string().optional(),
   is_active: z.boolean().default(true),
   created_at: z.string(),
-  updated_at: z.string(),
+  updated_at: z.string().optional(),
+  deleted_at: z.string().optional(),
 });
 
 export type WorkerType = z.infer<typeof WorkerSchema> & {
@@ -40,9 +43,9 @@ export type PaymentType = z.infer<typeof PaymentSchema> & {
 
 // Attendance schemas
 export const AttendanceSchema = z.object({
-  id: z.number(),
-  worker_id: z.number(),
-  project_id: z.number(),
+  id: z.string(),
+  worker_id: z.string(),
+  project_id: z.string(),
   attendance_date: z.string(),
   status: z.enum(['full', 'half', 'absent']),
   hours_worked: z.number().optional(),
@@ -50,17 +53,19 @@ export const AttendanceSchema = z.object({
   longitude: z.number().optional(),
   location_name: z.string().optional(),
   notes: z.string().optional(),
+  is_active: z.boolean().default(true),
   created_at: z.string(),
-  updated_at: z.string(),
+  updated_at: z.string().optional(),
+  deleted_at: z.string().optional(),
 });
 
 export type AttendanceType = z.infer<typeof AttendanceSchema>;
 
 // Payment schemas
 export const PaymentSchema = z.object({
-  id: z.number(),
-  worker_id: z.number(),
-  project_id: z.number(),
+  id: z.string(),
+  worker_id: z.string(),
+  project_id: z.string(),
   payment_date: z.string(),
   amount: z.number(),
   payment_type: z.enum(['wage', 'advance', 'bonus', 'deduction']),
@@ -68,8 +73,10 @@ export const PaymentSchema = z.object({
   payment_period_end: z.string().optional(),
   status: z.enum(['paid', 'unpaid']).default('unpaid'),
   notes: z.string().optional(),
+  is_active: z.boolean().default(true),
   created_at: z.string(),
-  updated_at: z.string(),
+  updated_at: z.string().optional(),
+  deleted_at: z.string().optional(),
 });
 
 

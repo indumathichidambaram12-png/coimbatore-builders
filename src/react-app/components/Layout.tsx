@@ -8,11 +8,10 @@ import {
   Building2, 
   Globe,
   FileText,
-  Settings,
-  LogOut
+  Settings
 } from 'lucide-react';
 import { useLanguage } from '@/react-app/contexts/LanguageContext';
-import { useAuth } from '@/react-app/contexts/AuthContext';
+import { useAuth } from '@/shared/contexts/AuthContext';
 import { StatusBar } from '@capacitor/status-bar';
 
 interface LayoutProps {
@@ -23,7 +22,7 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, language, setLanguage } = useLanguage();
-  const { logout } = useAuth();
+  const {  } = useAuth();
 
   useEffect(() => {
     const setupStatusBar = async () => {
@@ -84,13 +83,6 @@ export default function Layout({ children }: LayoutProps) {
               </span>
             </button>
             
-            <button
-              onClick={logout}
-              className="p-2 text-gray-500 hover:text-red-600 transition-colors"
-              title="Logout"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
           </div>
         </div>
       </header>

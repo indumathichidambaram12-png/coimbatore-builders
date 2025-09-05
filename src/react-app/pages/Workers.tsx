@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit3, Phone, MapPin, User } from 'lucide-react';
+import { Plus, Edit3, Phone, MapPin, User, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/react-app/contexts/LanguageContext';
 import { WorkerType, ProjectType, LABOUR_TYPES } from '@/shared/types';
 import PhotoUpload from '@/react-app/components/PhotoUpload';
-import { useDatabase } from '@/shared/contexts/DatabaseContext';
+import { collection, query, where, onSnapshot, orderBy, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '@/shared/services/firebase';
 
 export default function Workers() {
   const { t } = useLanguage();
-  const { db } = useDatabase();
   const [showForm, setShowForm] = useState(false);
   const [editingWorker, setEditingWorker] = useState<WorkerType | null>(null);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [workers, setWorkers] = useState<WorkerType[]>([]);
   const [projects, setProjects] = useState<ProjectType[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -26,44 +26,47 @@ export default function Workers() {
     project_id: '',
     photo_url: '',
   });
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [workersData, projectsData] = await Promise.all([
-          db.getWorkers(),
-          db.getProjects()
-        ]);
-        setWorkers(workersData);
-        setProjects(projectsData);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, [db]);
+    // Listen for workers
+    const workersQuery = query(
+      collection(db, 'workers'),
+      where('is_active', '==', true),
+      orderBy('created_at', 'desc')
+    );
 
-  // To be implemented when photo upload is needed
-  const _uploadPhoto = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('photo', file);
-    
-    const response = await fetch('/api/upload/photo', {
-      method: 'POST',
-      body: formData,
+    const unsubscribeWorkers = onSnapshot(workersQuery, (snapshot) => {
+      const workersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as WorkerType[];
+      setWorkers(workersData);
     });
-    
-    if (!response.ok) {
-      throw new Error('Photo upload failed');
-    }
-    
-    const result = await response.json();
-    return result.photo_url;
-  };
+
+    // Listen for projects
+    const projectsQuery = query(
+      collection(db, 'projects'),
+      where('is_active', '==', true),
+      orderBy('created_at', 'desc')
+    );
+
+    const unsubscribeProjects = onSnapshot(projectsQuery, (snapshot) => {
+      const projectsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ProjectType[];
+      setProjects(projectsData);
+      setLoading(false);
+    });
+
+    // Cleanup subscriptions
+    return () => {
+      unsubscribeWorkers();
+      unsubscribeProjects();
+    };
+  }, []);
+
+
 
     const handleCloseForm = () => {
     setShowForm(false);
@@ -81,7 +84,7 @@ export default function Workers() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { name, labour_type, phone_number, daily_wage, hourly_rate, project_id } = formData;
     
@@ -94,26 +97,29 @@ export default function Workers() {
       ...formData,
       daily_wage: Number(daily_wage) || 0,
       hourly_rate: Number(hourly_rate) || 0,
-      projects: project_id ? [project_id] : [],
-      lastUpdated: new Date().toISOString()
+      project_id: project_id || null,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     try {
       if (editingWorker) {
-        await db.updateWorkerById(editingWorker.id, workerData);
+        const workerRef = doc(db, 'workers', editingWorker.id);
+        await updateDoc(workerRef, {
+          ...workerData,
+          created_at: editingWorker.created_at, // Don't update creation date
+          updated_at: new Date().toISOString()
+        });
       } else {
-        await db.createWorker(workerData);
+        await addDoc(collection(db, 'workers'), workerData);
       }
       handleCloseForm();
-      const updatedWorkers = await db.getWorkers();
-      setWorkers(updatedWorkers);
     } catch (error) {
       console.error('Error saving worker:', error);
       alert(t('Error saving worker'));
     }
-  };
-
-  const resetForm = () => {
+  };  const resetForm = () => {
     setFormData({
       name: '',
       labour_type: '',
@@ -125,7 +131,19 @@ export default function Workers() {
       project_id: '',
       photo_url: '',
     });
-    setSelectedPhoto(null);
+  };
+
+  const handleDelete = async (worker: WorkerType) => {
+    if (!window.confirm(t('Are you sure you want to delete this worker?'))) {
+      return;
+    }
+    
+    try {
+      await deleteDoc(doc(db, 'workers', worker.id));
+    } catch (error) {
+      console.error('Error deleting worker:', error);
+      alert(t('Failed to delete worker'));
+    }
   };
 
   const handleEdit = (worker: WorkerType) => {
@@ -141,12 +159,11 @@ export default function Workers() {
       project_id: worker.project_id?.toString() || '',
       photo_url: worker.photo_url || '',
     });
-    setSelectedPhoto(null);
     setShowForm(true);
   };
 
   const filteredWorkers = selectedProject 
-    ? workers?.filter(w => w.project_id === parseInt(selectedProject))
+    ? workers?.filter(w => w.project_id === selectedProject)
     : workers;
 
   if (loading && !workers) {
@@ -186,7 +203,7 @@ export default function Workers() {
             {/* Photo Upload */}
             <PhotoUpload
               currentPhoto={formData.photo_url}
-              onPhotoChange={setSelectedPhoto}
+              className="mb-4"
             />
 
             <div>
@@ -370,12 +387,20 @@ export default function Workers() {
                     <p className="text-sm font-medium text-orange-600">₹{worker.daily_wage}/day</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleEdit(worker)}
-                  className="p-2 text-gray-400 hover:text-orange-600 transition-colors"
-                >
-                  <Edit3 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleEdit(worker)}
+                    className="p-2 text-gray-400 hover:text-orange-600 transition-colors"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(worker)}
+                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {(worker.phone_number || worker.project_name) && (
